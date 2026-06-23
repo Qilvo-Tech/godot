@@ -36,6 +36,10 @@
 #include "core/os/mutex.h"
 #include "core/templates/paged_allocator.h"
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten/posix_socket.h>
+#endif
+
 namespace tracy {
 static bool configured = false;
 
@@ -166,6 +170,21 @@ void godot_init_profiler() {
 	}
 
 	tracy::configured = true;
+
+#ifdef __EMSCRIPTEN__
+	// Tracy's worker thread reaches the host tracy-capture over a real POSIX
+	// socket, tunnelled to the browser by -sPROXY_POSIX_SOCKETS. Point that
+	// bridge at the websocket_to_posix_proxy here, on the main thread, before
+	// Tracy's worker issues its first socket() call (the shim blocks that call
+	// until this connection is OPEN).
+	emscripten_init_websocket_to_posix_socket_bridge("ws://localhost:8080");
+
+	// With TRACY_MANUAL_LIFETIME (web only) the profiler — and its worker thread —
+	// is started here, off the static initializer, so PROXY_TO_PTHREAD doesn't
+	// deadlock spawning the worker during module instantiation. This runs at the
+	// very top of main, before any profile zone is emitted.
+	tracy::StartupProfiler();
+#endif
 
 	// Send our first event to tracy; otherwise it doesn't start collecting data.
 	// FrameMark is kind of fitting because it communicates "this is where we started tracing".

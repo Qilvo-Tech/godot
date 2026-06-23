@@ -39,6 +39,17 @@
 #include "core/profiling/profiling.h"
 #include "main/main.h"
 
+#include "modules/register_module_types.h"
+
+#ifdef MODULE_CAMERA_ENABLED
+// modules/camera/SCsub compiles register_types.cpp for desktop/mobile only, but
+// the module stays enabled on web — so register_module_types references these
+// init hooks, which are otherwise undefined and abort the dlink load. The camera
+// module has no web backend, so resolve the symbols with no-op definitions.
+void initialize_camera_module(ModuleInitializationLevel p_level) {}
+void uninitialize_camera_module(ModuleInitializationLevel p_level) {}
+#endif
+
 #ifdef TOOLS_ENABLED
 #include "core/io/file_access.h"
 #include "editor/web_tools_editor_plugin.h"

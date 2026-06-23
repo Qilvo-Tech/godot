@@ -49,6 +49,17 @@
 
 #define TRACY_ENABLE
 
+#ifdef __EMSCRIPTEN__
+// On the threaded web build Godot runs main under PROXY_TO_PTHREAD. Tracy's
+// default lifetime spawns its worker thread from a static constructor, i.e.
+// during module instantiation before the runtime can yield to start a pooled
+// Web Worker — that pthread_create deadlocks the page (black canvas, nothing
+// reaches main). Switch to manual lifetime so the worker is started later, from
+// godot_init_profiler() (which runs at the top of main, after instantiation).
+#define TRACY_MANUAL_LIFETIME
+#define TRACY_DELAYED_INIT
+#endif
+
 #include <tracy/Tracy.hpp>
 
 // Hijacking the tracy namespace so we can use their macros.

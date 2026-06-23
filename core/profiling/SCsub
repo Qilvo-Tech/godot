@@ -63,6 +63,10 @@ if env["profiler"]:
 
         env_tracy = env.Clone()
         env_tracy.Append(CPPDEFINES=["TRACY_ENABLE"])
+        if env["platform"] == "web":
+            # Match profiling.h: defer Tracy worker startup off the static
+            # initializer so PROXY_TO_PTHREAD doesn't deadlock at instantiation.
+            env_tracy.Append(CPPDEFINES=["TRACY_MANUAL_LIFETIME", "TRACY_DELAYED_INIT"])
         if env["profiler_sample_callstack"]:
             if env["platform"] not in ("windows", "linuxbsd", "android"):
                 # Reference the feature matrix in the tracy documentation.

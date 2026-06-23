@@ -155,6 +155,20 @@ def configure(env: "SConsEnvironment"):
         # Retain function names for backtraces at the cost of file size.
         env.Append(LINKFLAGS=["--profiling-funcs"])
 
+    if env["profiler"] == "tracy":
+        # Tracy's client opens a raw TCP socket; the browser sandbox can't, so
+        # tunnel POSIX sockets over WebSocket via Emscripten's proxy. Requires a
+        # websockify / emscripten socket-proxy bridge on the host. PROXY_POSIX_SOCKETS
+        # depends on PROXY_TO_PTHREAD, which only the threaded build provides — guard
+        # it rather than emit a silently-broken/deadlocking template.
+        if not env["threads"]:
+            print("ERROR: profiler=tracy on web requires threads=yes (PROXY_POSIX_SOCKETS needs PROXY_TO_PTHREAD). Aborting.")
+            Exit(255)
+        env.Append(LINKFLAGS=["-lwebsocket.js", "-sPROXY_POSIX_SOCKETS"])
+        # For diagnosing dylink/socket issues, add: -sASSERTIONS=1 --profiling-funcs
+        # (names unresolved symbols + stack frames; do NOT use debug_symbols=yes on
+        # web — full -g DWARF bloats side.wasm to ~484MB and won't load).
+
     if env.editor_build and env["initial_memory"] < 64:
         print_info("Forcing `initial_memory=64` as it is required for the web editor.")
         env["initial_memory"] = 64
